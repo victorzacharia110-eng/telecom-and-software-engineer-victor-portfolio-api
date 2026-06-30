@@ -15,9 +15,10 @@ Route::get('/sanctum/csrf-cookie', function () {
     return response()->json(['message' => 'CSRF cookie set']);
 });
 
-// ── Public Routes ────────────────────────────────────────────────────────
+// ── Public ────────────────────────────────────────────────────────────────
 Route::get('/certificates', [CertificateController::class, 'index']);
 Route::middleware(['throttle:60,1'])->group(function () {
+
     Route::prefix('projects')->group(function () {
         Route::get('/', [ProjectController::class, 'index']);
         Route::get('/featured', [ProjectController::class, 'featured']);
@@ -32,12 +33,12 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/projects/{project}/testimonials', [TestimonialController::class, 'forProject']);
 });
 
-//  Auth Routes - Directly under /api (no /auth prefix)
+//  AUTH ROUTES - Directly under /api (NO /auth prefix)
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 
-// Protected auth routes
+//  Protected auth routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
