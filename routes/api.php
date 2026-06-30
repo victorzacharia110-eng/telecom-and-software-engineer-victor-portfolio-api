@@ -33,12 +33,12 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/projects/{project}/testimonials', [TestimonialController::class, 'forProject']);
 });
 
-//  AUTH ROUTES - Directly under /api (NO /auth prefix)
+// ── AUTH ROUTES - Directly under /api ────────────────────────────────────
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 
-//  Protected auth routes
+// ── Protected auth routes ────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -60,6 +60,11 @@ Route::middleware(['auth:sanctum'])->prefix('client')->group(function () {
 
 // ── Admin (Sanctum protected) ─────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'throttle:120,1'])->prefix('admin')->group(function () {
+    
+    // ── Profile ──────────────────────────────────────────────────────────
+    Route::get('/profile', [AdminController::class, 'profile']);
+    Route::patch('/profile', [AdminController::class, 'updateProfile']);
+    
     // ── Dashboard ──────────────────────────────────────────────────────────
     Route::prefix('dashboard')->group(function () {
         Route::get('/stats', [AdminController::class, 'stats']);
