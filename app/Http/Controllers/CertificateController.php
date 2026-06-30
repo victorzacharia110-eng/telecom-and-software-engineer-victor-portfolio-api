@@ -294,6 +294,11 @@ class CertificateController extends Controller
                 ], 422);
             }
 
+            // ✅ Create directory if it doesn't exist
+            if (!Storage::disk('public')->exists('certificates')) {
+                Storage::disk('public')->makeDirectory('certificates', 0755, true);
+            }
+
             $file = $request->file('file');
             $filename = time() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '', $file->getClientOriginalName());
             $path = $file->storeAs('certificates', $filename, 'public');

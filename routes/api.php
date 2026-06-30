@@ -103,6 +103,11 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->prefix('admin')->group(fu
     Route::get('/certificates/{certificate}', [CertificateController::class, 'show']);
     Route::patch('/certificates/{certificate}', [CertificateController::class, 'update']);
     Route::delete('/certificates/{certificate}', [CertificateController::class, 'destroy']);
+    
+    // ── Additional Certificate Routes ────────────────────────────────────
+    Route::post('/upload/certificate', [CertificateController::class, 'upload']);
+    Route::post('/certificates/reorder', [CertificateController::class, 'reorder']);
+    Route::patch('/certificates/{certificate}/toggle-active', [CertificateController::class, 'toggleActive']);
 
     // ── Users ─────────────────────────────────────────────────────────────
     Route::get('/users', [UserController::class, 'index']);
