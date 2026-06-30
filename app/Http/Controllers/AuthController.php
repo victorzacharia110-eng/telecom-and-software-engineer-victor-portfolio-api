@@ -19,7 +19,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'phone_number' => 'required|string|max:20|unique:users', // ✅ Added
+            'phone_number' => 'required|string|max:20|unique:users',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
@@ -36,15 +36,14 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $validatedData['name'],
             'email' => $validatedData['email'],
-            'phone_number' => $validatedData['phone_number'], // ✅ Added
+            'phone_number' => $validatedData['phone_number'],
             'password' => Hash::make($validatedData['password']),
             'role' => 'client',
             'email_verified_at' => null,
         ]);
 
-        // Login the user after registration (SPA mode)
-        Auth::login($user);
-        $request->session()->regenerate();
+        // Create API token
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'success' => true,
@@ -54,17 +53,18 @@ class AuthController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'phone_number' => $user->phone_number, // ✅ Added
+                    'phone_number' => $user->phone_number,
                     'role' => $user->role,
                     'created_at' => $user->created_at,
                 ],
+                'token' => $token,
+                'token_type' => 'Bearer'
             ]
         ], 201);
     }
 
     /**
-     * Login user (SPA mode with Sanctum)
-     * Supports both email and phone_number login
+     * Login user (Token-based)
      */
     public function login(Request $request)
     {
@@ -85,7 +85,7 @@ class AuthController extends Controller
 
         $remember = $request->boolean('remember', false);
 
-        // Determine login field (email or phone_number)
+        // Determine login field
         $loginField = $request->has('email') ? 'email' : 'phone_number';
         $loginValue = $request->input($loginField);
 
@@ -113,11 +113,14 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Regenerate session for SPA login (Sanctum SPA mode)
-        $request->session()->regenerate();
-
         // Update last login timestamp
         $user->update(['last_login_at' => now()]);
+
+        // Revoke old tokens
+        $user->tokens()->delete();
+
+        // Create new token
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
             'success' => true,
@@ -127,11 +130,13 @@ class AuthController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'phone_number' => $user->phone_number, // ✅ Added
+                    'phone_number' => $user->phone_number,
                     'role' => $user->role,
                     'is_verified' => $user->email_verified_at !== null,
                     'last_login' => $user->last_login_at ?? null,
                 ],
+                'token' => $token,
+                'token_type' => 'Bearer',
                 'remember_me' => $remember,
             ]
         ], 200);
@@ -142,7 +147,7 @@ class AuthController extends Controller
      */
     public function user(Request $request)
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         if (!$user) {
             return response()->json([
@@ -159,7 +164,7 @@ class AuthController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
-                    'phone_number' => $user->phone_number, // ✅ Added
+                    'phone_number' => $user->phone_number,
                     'role' => $user->role,
                     'created_at' => $user->created_at,
                     'email_verified_at' => $user->email_verified_at,
@@ -171,24 +176,19 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout user (SPA mode)
+     * Logout user (Token-based)
      */
     public function logout(Request $request)
     {
-        $user = Auth::user();
-
-        // Invalidate the session
-        $request->session()->invalidate();
-
-        // Regenerate CSRF token
-        $request->session()->regenerateToken();
+        $user = $request->user();
+        $user->currentAccessToken()->delete();
 
         return response()->json([
             'success' => true,
             'message' => 'Logged out successfully!',
             'data' => [
-                'user_id' => $user?->id,
-                'user_name' => $user?->name,
+                'user_id' => $user->id,
+                'user_name' => $user->name,
                 'logged_out_at' => now(),
             ]
         ], 200);
@@ -199,7 +199,7 @@ class AuthController extends Controller
      */
     public function changePassword(Request $request)
     {
-        $user = Auth::user();
+        $user = $request->user();
 
         if (!$user) {
             return response()->json([
@@ -276,16 +276,5 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Unable to send reset link.'
             ], 500);
-    }
-
-    /**
-     * Refresh session (optional)
-     */
-    public function refresh(Request $request)
-    {
-        return response()->json([
-            'success' => true,
-            'message' => 'Session refreshed',
-        ], 200);
     }
 }
