@@ -20,8 +20,8 @@ class ClientController extends Controller
         try {
             $user = Auth::user();
             
-            // Get projects for this client
-            $projects = Project::where('client_id', $user->id)->count();
+            // Count all projects (no client_id filter yet)
+            $projects = Project::count();
             
             // Get messages for this client (using email)
             $messages = Contact::where('email', $user->email)->count();
@@ -59,15 +59,26 @@ class ClientController extends Controller
         try {
             $user = Auth::user();
             
-            $projects = Project::where('client_id', $user->id)
-                ->orderBy('created_at', 'desc')
+            // Get all projects (no client_id filter yet)
+            $projects = Project::orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($project) {
                     return [
                         'id' => $project->id,
+                        'title' => $project->title,
                         'name' => $project->name,
                         'description' => $project->description,
-                        'status' => $project->status ?? 'pending',
+                        'category' => $project->category,
+                        'status' => $project->status ?? 'active',
+                        'year' => $project->year,
+                        'team_size' => $project->team_size,
+                        'client' => $project->client,
+                        'live_url' => $project->live_url,
+                        'github_url' => $project->github_url,
+                        'thumbnail' => $project->thumbnail,
+                        'tech_stack' => $project->tech_stack,
+                        'is_featured' => $project->is_featured,
+                        'is_active' => $project->is_active,
                         'created_at' => $project->created_at,
                         'updated_at' => $project->updated_at,
                     ];
@@ -96,9 +107,7 @@ class ClientController extends Controller
         try {
             $user = Auth::user();
             
-            $project = Project::where('client_id', $user->id)
-                ->where('id', $id)
-                ->firstOrFail();
+            $project = Project::findOrFail($id);
             
             return response()->json([
                 'success' => true,
@@ -138,8 +147,10 @@ class ClientController extends Controller
                         'preview' => substr($message->message, 0, 100) . '...',
                         'date' => $message->created_at->format('M d, Y'),
                         'time' => $message->created_at->format('h:i A'),
-                        'is_read' => $message->is_read, // Uses the computed attribute
+                        'is_read' => $message->is_read,
                         'read_at' => $message->read_at,
+                        'created_at' => $message->created_at,
+                        'updated_at' => $message->updated_at,
                     ];
                 });
             
@@ -190,6 +201,8 @@ class ClientController extends Controller
                     'time' => $message->created_at->format('h:i A'),
                     'is_read' => $message->is_read,
                     'read_at' => $message->read_at,
+                    'created_at' => $message->created_at,
+                    'updated_at' => $message->updated_at,
                 ]
             ], 200);
             
@@ -266,6 +279,7 @@ class ClientController extends Controller
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'phone_number' => $user->phone_number,
                     'role' => $user->role,
                     'created_at' => $user->created_at,
                     'updated_at' => $user->updated_at,
@@ -292,6 +306,7 @@ class ClientController extends Controller
             $validator = Validator::make($request->all(), [
                 'name' => 'sometimes|string|max:255',
                 'email' => 'sometimes|email|unique:users,email,' . $user->id,
+                'phone_number' => 'sometimes|string|max:20',
                 'password' => 'sometimes|string|min:8|confirmed',
             ]);
             
@@ -313,7 +328,11 @@ class ClientController extends Controller
                 $updateData['email'] = $request->email;
             }
             
-            if ($request->has('password')) {
+            if ($request->has('phone_number')) {
+                $updateData['phone_number'] = $request->phone_number;
+            }
+            
+            if ($request->has('password') && $request->password) {
                 $updateData['password'] = Hash::make($request->password);
             }
             
@@ -322,7 +341,14 @@ class ClientController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Profile updated successfully',
-                'data' => $user
+                'data' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone_number' => $user->phone_number,
+                    'role' => $user->role,
+                    'updated_at' => $user->updated_at,
+                ]
             ], 200);
             
         } catch (\Exception $e) {
