@@ -15,10 +15,9 @@ Route::get('/sanctum/csrf-cookie', function () {
     return response()->json(['message' => 'CSRF cookie set']);
 });
 
-// ── Public ────────────────────────────────────────────────────────────────
+// ── Public Routes ────────────────────────────────────────────────────────
 Route::get('/certificates', [CertificateController::class, 'index']);
 Route::middleware(['throttle:60,1'])->group(function () {
-
     Route::prefix('projects')->group(function () {
         Route::get('/', [ProjectController::class, 'index']);
         Route::get('/featured', [ProjectController::class, 'featured']);
@@ -33,20 +32,17 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/projects/{project}/testimonials', [TestimonialController::class, 'forProject']);
 });
 
-// ── Auth Routes (with web middleware for SPA session support) ──────────
-Route::prefix('auth')->middleware(['web'])->group(function () {
-    // Public auth routes
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-    
-    // Protected auth routes (require authentication)
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/user', [AuthController::class, 'user']);
-        Route::post('/logout', [AuthController::class, 'logout']);
-        Route::post('/refresh', [AuthController::class, 'refresh']);
-        Route::post('/change-password', [AuthController::class, 'changePassword']);
-    });
+//  Auth Routes - Directly under /api (no /auth prefix)
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+
+// Protected auth routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', [AuthController::class, 'user']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
 });
 
 // ── Client Routes (Sanctum protected) ────────────────────────────────────
@@ -62,8 +58,7 @@ Route::middleware(['auth:sanctum'])->prefix('client')->group(function () {
 });
 
 // ── Admin (Sanctum protected) ─────────────────────────────────────────────
-Route::middleware(['web', 'auth:sanctum', 'throttle:120,1'])->prefix('admin')->group(function () {
-
+Route::middleware(['auth:sanctum', 'throttle:120,1'])->prefix('admin')->group(function () {
     // ── Dashboard ──────────────────────────────────────────────────────────
     Route::prefix('dashboard')->group(function () {
         Route::get('/stats', [AdminController::class, 'stats']);
