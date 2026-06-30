@@ -6,6 +6,7 @@ use App\Models\Certificate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class CertificateController extends Controller
 {
@@ -18,9 +19,9 @@ class CertificateController extends Controller
             'year' => 'required|integer|min:1900|max:' . (date('Y') + 1),
             'type' => 'required|string|in:CSEE,ACSEE,Degree,Diploma,Certificate,Certification,Professional',
             'level' => 'required|string|in:secondary,tertiary,professional,certificate',
-            'file_path' => 'required|string|max:255|regex:/\.(pdf|jpg|jpeg|png|doc|docx)$/i',
+            'file_path' => 'required|string|max:500',
             'file_type' => 'required|string|in:pdf,image,doc,excel',
-            'thumbnail_path' => 'nullable|string|max:255|url',
+            'thumbnail_path' => 'nullable|string|max:255',
             'is_active' => 'boolean',
             'order' => 'nullable|integer|min:0',
         ];
@@ -45,10 +46,8 @@ class CertificateController extends Controller
             'level.required' => 'Education level is required.',
             'level.in' => 'Level must be secondary, tertiary, professional, or certificate.',
             'file_path.required' => 'Certificate file is required.',
-            'file_path.regex' => 'File must be PDF, JPG, PNG, or DOC format.',
             'file_type.required' => 'File type is required.',
             'file_type.in' => 'File type must be PDF, Image, DOC, or Excel.',
-            'thumbnail_path.url' => 'Thumbnail must be a valid URL.',
             'order.integer' => 'Order must be a number.',
             'order.min' => 'Order cannot be negative.',
         ];
@@ -95,6 +94,16 @@ class CertificateController extends Controller
             }
 
             $validated = $validator->validated();
+            
+            // Clean the file_path if it's a full URL
+            if (isset($validated['file_path']) && filter_var($validated['file_path'], FILTER_VALIDATE_URL)) {
+                $parsedUrl = parse_url($validated['file_path']);
+                if (isset($parsedUrl['path'])) {
+                    $validated['file_path'] = ltrim($parsedUrl['path'], '/');
+                    $validated['file_path'] = str_replace('storage/', '', $validated['file_path']);
+                }
+            }
+
             $certificate = Certificate::create($validated);
 
             return response()->json([
@@ -137,6 +146,16 @@ class CertificateController extends Controller
             }
 
             $validated = $validator->validated();
+            
+            // Clean the file_path if it's a full URL
+            if (isset($validated['file_path']) && filter_var($validated['file_path'], FILTER_VALIDATE_URL)) {
+                $parsedUrl = parse_url($validated['file_path']);
+                if (isset($parsedUrl['path'])) {
+                    $validated['file_path'] = ltrim($parsedUrl['path'], '/');
+                    $validated['file_path'] = str_replace('storage/', '', $validated['file_path']);
+                }
+            }
+
             $certificate->update($validated);
 
             return response()->json([
@@ -189,8 +208,8 @@ class CertificateController extends Controller
             $certificate = Certificate::findOrFail($id);
             
             // Delete file if exists
-            if ($certificate->file_path && Storage::exists($certificate->file_path)) {
-                Storage::delete($certificate->file_path);
+            if ($certificate->file_path && Storage::disk('public')->exists($certificate->file_path)) {
+                Storage::disk('public')->delete($certificate->file_path);
             }
             
             $certificate->delete();
@@ -305,7 +324,7 @@ class CertificateController extends Controller
 
             // Determine file type
             $extension = $file->getClientOriginalExtension();
-            $fileType = match($extension) {
+            $fileType = match(strtolower($extension)) {
                 'pdf' => 'pdf',
                 'jpg', 'jpeg', 'png', 'gif', 'webp' => 'image',
                 'doc', 'docx' => 'doc',
@@ -322,6 +341,8 @@ class CertificateController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Certificate upload error: ' . $e->getMessage());
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upload file: ' . $e->getMessage()
