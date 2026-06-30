@@ -33,17 +33,19 @@ Route::middleware(['throttle:60,1'])->group(function () {
     Route::get('/projects/{project}/testimonials', [TestimonialController::class, 'forProject']);
 });
 
-// ── AUTH ROUTES - Directly under /api ────────────────────────────────────
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+// ── AUTH ROUTES - Under /auth prefix ────────────────────────────────────
+Route::prefix('auth')->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 
-// ── Protected auth routes ────────────────────────────────────────────────
-Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', [AuthController::class, 'user']);
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/refresh', [AuthController::class, 'refresh']);
-    Route::post('/change-password', [AuthController::class, 'changePassword']);
+    // Protected auth routes
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/user', [AuthController::class, 'user']);
+        Route::post('/logout', [AuthController::class, 'logout']);
+        Route::post('/refresh', [AuthController::class, 'refresh']);
+        Route::post('/change-password', [AuthController::class, 'changePassword']);
+    });
 });
 
 // ── Client Routes (Sanctum protected) ────────────────────────────────────
