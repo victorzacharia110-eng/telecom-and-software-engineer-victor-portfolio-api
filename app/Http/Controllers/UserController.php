@@ -37,6 +37,7 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
+            'phone_number' => 'nullable|string|max:20',
             'password' => 'required|string|min:8|confirmed',
             'role' => 'sometimes|in:admin,client',
         ]);
@@ -54,6 +55,7 @@ class UserController extends Controller
         $user = User::create([
             'name' => $validatedData['name'],
             'email' => $validatedData['email'],
+            'phone_number' => $validatedData['phone_number'] ?? null,
             'password' => Hash::make($validatedData['password']),
             'role' => $validatedData['role'] ?? 'client',
             'email_verified_at' => null,
@@ -67,6 +69,7 @@ class UserController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'phone_number' => $user->phone_number,
                 'role' => $user->role,
                 'created_at' => $user->created_at,
             ]
@@ -93,8 +96,10 @@ class UserController extends Controller
             'message' => 'User retrieved successfully',
             'data' => [
                 'user' => $user,
+                'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'phone_number' => $user->phone_number,
                 'role' => $user->role,
                 'created_at' => $user->created_at,
                 'is_verified' => $user->is_verified,
@@ -120,6 +125,7 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|string|email|max:255|unique:users,email,' . $id,
+            'phone_number' => 'nullable|string|max:20', 
             'password' => 'sometimes|string|min:8|confirmed',
             'role' => 'sometimes|in:admin,client',
         ]);
@@ -145,6 +151,11 @@ class UserController extends Controller
             $updatedFields[] = 'email';
         }
 
+        if ($request->has('phone_number')) {
+            $updateData['phone_number'] = $request->phone_number;
+            $updatedFields[] = 'phone_number';
+        }
+
         if ($request->has('password')) {
             $updateData['password'] = Hash::make($request->password);
             $updatedFields[] = 'password';
@@ -158,6 +169,7 @@ class UserController extends Controller
         $oldValues = [
             'name' => $user->name,
             'email' => $user->email,
+            'phone_number' => $user->phone_number,
             'role' => $user->role,
         ];
 
@@ -189,10 +201,19 @@ class UserController extends Controller
             ], 404);
         }
 
+        //  Prevent self-deletion
+        if (auth()->id() === (int) $id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You cannot delete your own account'
+            ], 403);
+        }
+
         $userData = [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'phone_number' => $user->phone_number,
             'role' => $user->role,
         ];
 
